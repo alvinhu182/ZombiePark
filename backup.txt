@@ -1,0 +1,334 @@
+import pgzrun
+import random
+
+#estou definindo a largura em 1200px e altura em 720px
+WIDTH = 1200
+HEIGHT = 720
+#criei uma variavel chamada white(porque ela fica branca) que recebe as cores em RBG 
+white = (255, 255, 255)
+black = (0,0,0)
+
+#criando o plano de fundo e o personagem principal
+background = Actor("background")
+main_char = Actor('player_idle')
+background_store = Actor("background_store") 
+background_game_over = Actor("background_game_over") 
+
+#balas recebe um array vazio porque ela só vai ser preenchida quando o player atirar
+balas = []
+
+#para evitar que fique tomando musica em lugares que não deveria
+playing_music = False
+#serve para o botão de ligar e desligar som
+activated_sounds = True
+
+#uma classe para os inimigos
+class Zombie:
+    #__init__ é o contrutor da classe, sempre que for criar um zombie novo, vai ser chamado 
+    #image_name é o nome da sprite, start_pos são as coordenadas de onde vão surgir, e a direção é pra ir pra frente ou pra traz (1 pra frente -1 pra traz )
+    #o self é utilizado para editar os atributos
+    def __init__(self, image_name, start_pos, direction):
+        self.actor = Actor(image_name, start_pos) # type: ignore
+        self.direction = direction
+        self.vida = 3
+    #outra função da classe zombie, 
+    def respawn(self):
+        #respaunar o zombie com a vida cheia(3)
+        self.vida = 3
+        #é escolhido a direção que o zombie vai andar, -1 pra traz, 1 pra frente
+        self.direction = random.choice([-1, 1])
+        #aqui é pra definir a posição horizontal do zombie nesse caso, o 0 ele começa na esquerda, e o 1 ele começa na direita
+        self.actor.x = 0 if self.direction == 1 else WIDTH
+        #esse é para definir a posição vertical
+        self.actor.y = random.randint(30, 600)
+        
+#cria uma lista que vai armazenar os objetos do tipo zombie
+zombies = []
+#um for para percorrer esse array, e cada vez que ele passa ali, invoca um zombie, com no maximo 3 (0,1,2)
+for i in range(3):
+    start_x = 0 if i % 2 == 0 else WIDTH
+    direction = 1 if start_x == 0 else -1
+    #aqui se cria os zombies de fato, pois no de cima, eles respawnam apenas
+    z = Zombie(f'zombie{i+1}', (start_x, random.randint(30, 600)), direction)
+    zombies.append(z)
+
+# score 0 para começar com 0, total_score é os pontos que você vai fazendo de acordo com a progressão do jogo
+score = 0
+total_score = 0
+#vida do personagem
+health = 3
+#começo com o game_over como falso, se não nem começaria o jogo
+game_over = False
+
+#aqui diz qual tela é responsavel no momento, e a primeira tela é o menu
+actual_screen = 'menu'
+#aqui estão as partes de rogue like do jogo, onde cada vez que você vai jogando, você vai ficando mais forte
+upgrades = {
+    "char_speed": {"level": 0, "price": 5},
+    "health": {"level": 0, "price": 5},
+    "bullet_speed": {"level": 0, "price": 5},
+    "bullet_damage": {"level": 0, "price": 5},
+}
+
+
+#aqui estou criando os botões, o primeiro parentese é: coordenada x e y respectivamente
+# o ultimo paresente é a largura e altura respectivamente 
+#o botão play começa o jogo
+button_play = Rect((300, 250), (180, 50))
+#o botão restart recomeça o jogo depois de perder
+button_restart = Rect((300, 300), (200, 50))
+#menu vai pro menu
+button_menu = Rect((300, 370), (200, 50))
+#store é onde você faz os upgrades
+button_store = Rect((310, 320), (180, 40))
+#botão de ligar e desligar som
+button_sound = Rect((310, 380), (180, 40))
+
+#função para começar o jogo
+def start_game():
+    #adicionando variaveis globais para que possam ser utilizadas aqui dentro
+    global score, health, game_over, actual_screen, total_score
+    #aqui o personagem vai nascer no meio da tela
+    main_char.x, main_char.y = WIDTH / 2, HEIGHT / 2
+    #pra cada zumbi na lista de zombies, chama o metodo respawn, que reposiona os zumbis
+    for z in zombies:
+        z.respawn()
+
+    #a ponturação do jogador é zerado sempre que começa um jogo
+    score = 0
+    #aqui a vida começa com 3 + a quantidade de upgrades que você comprou
+    health = 3 + upgrades["health"]["level"]
+    #setando o game_over para falso, que indica que o jogador está jogando
+    game_over = False
+    #aqui indica qual tela deve ser mostrada
+    actual_screen = "game"
+
+#função responsavel por atualizar o jogo 
+def update():
+    #variáveis globais
+    global actual_screen, health, game_over, score, total_score
+    # verifica se a tela atual não é a de jogo, porque ele para de atualizar para evitar que o personagem se mora fora de jogo
+    if actual_screen != "game":
+        return
+    #velocidade do personagem somado com o upgrade de velocidade
+    char_speed = 5 + upgrades["char_speed"]["level"]
+    #tecla pra cima, para o personagem subir
+    if keyboard.up:
+        main_char.y -= char_speed
+        main_char.y = max(40, min(680, main_char.y))
+    #tecla pra baixo pro personagem descer
+    if keyboard.down:
+        #garante que o personagem não atinja os limites da tela
+        main_char.y += char_speed
+        main_char.y = max(40, min(680, main_char.y))
+    #nesse bloco de codigo, se acordo com a seta que o player usa, ele se mexe pra um lado diferente, mudando a sprite
+    if keyboard.up:
+        main_char.image = 'main_char_going_up'
+    elif keyboard.down:
+        main_char.image = 'player_idle'
+    elif keyboard.left:
+        main_char.image = 'main_char_shooting_left'
+    elif keyboard.right:
+        main_char.image = 'main_char_shooting_right'
+        
+    #velocidade do zombie, e a programação pra ir aumentando a velocidade de acordo com os pontos
+    #percorre o array verificando se os zombies estão vivos, se estiver manda eles pro eixo X(horizontal) podendo ser esquerda ou direita, e a altura é aleatoria
+    zombie_speed = 2 + score / 5
+    for z in zombies:
+        if z.vida > 0:
+            z.actor.x += zombie_speed * z.direction
+            #esse codigo é a colisão entre personagem e zombie, toca um som, perde uma vida, e se a vida chegar a 0 dá o game_over e toca o som do game_over
+            if z.actor.colliderect(main_char):
+                if activated_sounds:
+                    sounds.hurt.play()
+                health -= 1
+                if health <= 0:
+                    game_over = True
+                    if activated_sounds:
+                        sounds.game_over.play()
+                        #aqui a tela muda para o 'END' sendo o final do jogo
+                    actual_screen = "End"
+                z.respawn()
+            #aqui é pra ver se o zombie saiu da tela sem encostar no jogador, ai o +50 e o -50 garante que eles já estejam fora do mapa, pra poder spawnar outro
+            elif z.actor.x < -50 or z.actor.x > WIDTH + 50:
+                z.respawn()
+                # score += 1
+                # total_score += 1
+                
+    #velocidade do tiro + os upgrades, dano do tiro + os upgrades
+    bullet_speed = 10 + upgrades["bullet_speed"]["level"] * 2
+    bullet_damage = 1 + min(upgrades["bullet_damage"]["level"], 3)
+
+    #[:] evita erros ao remover balas da lista dentro do for
+    for bala in balas[:]:
+        #hasattr verifica se a bala tem o atributo direção
+        if hasattr(bala, 'direcao'):
+            #aqui é onde seta pra qual lado vai sair a bala, e valor positivo pra direita, valor nergativo pra esquerda
+            if bala.direcao == "direita":
+                bala.x += bullet_speed
+            elif bala.direcao == "esquerda":
+                bala.x -= bullet_speed
+        else:
+            #se a bala não tiver direção definida, ela sai por padrão na direita
+            bala.x += bullet_speed
+        #esse codigo é para remover as balas que estão fora da tela, pra não gastar memoria atoa
+        if bala.x < -50 or bala.x > WIDTH + 50:
+            balas.remove(bala)
+            #o continue faz o Python parar de executar o restante do codigo dentro do for, como por exemplo, checar colisões com zumbis, e depois ele vai pra proxima bala da lista, é importante pra evitar processamento demais, e tambem evita erros com balas que não são mais importantes
+            continue
+
+        for z in zombies:
+            if z.vida > 0 and bala.colliderect(z.actor):
+                #reduz a vida de acordo com o dano do tiro
+                z.vida -= bullet_damage
+                #se acertou a bala é removida
+                balas.remove(bala)
+                if z.vida <= 0:
+                    #se a vida do zumbi chegar a 0, o jogador ganha pontos e pontos totais
+                    score += 1
+                    total_score += 1
+                    z.respawn()
+                break
+#função responsavel por desenhar os objetos 
+def draw():
+    global playing_music, background_game_over
+    if actual_screen == "store":
+        background_store.draw()   
+    else:    
+    #desenha a imagem de fundo
+        background.draw()
+    # se a tela estiver no menu, ela vai escrever o nome do jogo
+    if actual_screen == "menu":
+        screen.draw.text("ZombiePark", center=(WIDTH // 2, 150), color="yellow", fontsize=95)
+        #define espaçamento dos botões
+        button_y_start = 250
+        button_spacing = 70
+        
+        #define a posição do canto superior esquerdo do botão play a largura do botão é 200, então WIDTH / 2 - 100 coloca o play no centro do botão
+        button_play.topleft = (WIDTH // 2 - 100, button_y_start)
+        #desenha o botão play de vermelho
+        screen.draw.filled_rect(button_play, (255, 0, 0))
+        #escreve o play dentro do botão 
+        screen.draw.text("PLAY", center=button_play.center, color=white, fontsize=30)
+        # desenha o botão da loja de upgrades
+        button_store.topleft = (WIDTH // 2 - 100, button_y_start + button_spacing )
+        
+        screen.draw.filled_rect(button_store, (0, 0, 255))
+        screen.draw.text("UPGRADE", center=button_store.center, color=white, fontsize=30)
+        button_sound.topleft = (WIDTH // 2 - 100, button_y_start + 2 * button_spacing )
+        #desenha o botão de tirar o som e ligar o som
+        screen.draw.filled_rect(button_sound, (128, 0, 128))
+        #aqui ele verifica se o som está ligado (ON) ou desligado (OFF) e escreve isso no botão
+        screen.draw.text("SOUND: " + ("ON" if activated_sounds else "OFF"), center=button_sound.center, color=white, fontsize=30)
+        #se a musica não estiver tocando (playing_music False) e se estiver tocando(Playing_music é TRUE)o -1 é para ficar tocando em loop infinito
+        if not playing_music and activated_sounds:
+            sounds.menu_song.play(-1)
+            playing_music = True
+        elif not activated_sounds and playing_music:
+            #aqui se os sons não estiverem ativados muda o playing music pra False e para de tocar
+            sounds.menu_song.stop()
+            playing_music = False
+    #aqui ele diz que se estiver na tela de jogo, vai mudar o playing_music pra falso, e parar a musica
+    elif actual_screen == "game":
+        #aqui ele faz a verificação de se está tocando musica
+        if playing_music:
+            sounds.menu_song.stop()
+            playing_music = False
+        #desenha o personagem principal
+        main_char.draw()
+        #só desenha os zombies com vida maior que 0
+        for z in zombies:
+            if z.vida > 0:
+                #desenha o zumbi de fato na tela
+                z.actor.draw()
+        #escreve na tela o placar do jogador
+        screen.draw.text(f'Score: {score}', (15, 20), color=black )
+        #escreve a vida do jogador
+        screen.draw.text(f'Health: {health}', (15, 40), color=black )
+        #aqui é onde é criado a bala, sendo um retangulo de 20/5 e amarelo (255,255,0)
+        for bala in balas:
+            screen.draw.filled_rect(Rect((bala.x, bala.y), (20, 5)), (255, 255, 0))
+    #aqui é a tela depois que você morreu, vai aparecer na tela o game over, o final score, o botão pra reininciar (jogar novamente) e o botão menu
+    elif actual_screen == "End":
+        background_game_over.draw()
+        screen.draw.text("GAME OVER", center=(WIDTH // 2, 180), color=white, fontsize=40)
+        screen.draw.text(f"FINAL SCORE: {score}", center=(WIDTH // 2, 230), color=white, fontsize=30)
+        screen.draw.filled_rect(button_restart, (0, 128, 0))
+        screen.draw.text("REINICIAR", center=button_restart.center, fontsize=30, color=white)
+        screen.draw.filled_rect(button_menu, (0, 0, 128))
+        screen.draw.text("MENU", center=button_menu.center, fontsize=30, color=white)
+    #só é executado se estiver na  tela de loja de upgrades
+    elif actual_screen == "store":
+        screen.draw.text("UPGRADE STORE", center=(WIDTH // 2, 50), fontsize=50, color=black)
+        #define onde começam os textos dos upgrades
+        y_start = 150
+        y_gap = 60
+        #percorre o array, verificando o level e o preço em pontos
+        for i, (key, upgrade) in enumerate(upgrades.items()):
+            #key aqui nesse caso é um upgrade, por exemplo, vida, dano da arma, etc.. e o upper deixa o texto em maiusculo
+            text = f"{key.upper()}: Nível {upgrade['level']} - Preço: {upgrade['price']} pts"
+            screen.draw.text(text, (100, y_start + i * y_gap), fontsize=30, color=white)
+        #desenha a pontuação total desenha tambem o botão de voltar para o menu
+        screen.draw.text(f"Total Score: {total_score}", topright=(WIDTH - 20, 10), fontsize=30, color=black)
+        screen.draw.filled_rect(button_menu, (0, 0, 128))
+        screen.draw.text("VOLTAR", center=button_menu.center, fontsize=30, color=white)
+#o parametro key, serve pra indicar qual tecla foi apertada, e caso seja espaço o jogador atira, e a direção da bala depende do lado que seu personagem está virado
+def on_key_down(key):
+    global balas
+    if actual_screen == "game" and key == keys.SPACE:
+        nova_bala = Actor("bala")
+        sounds.pewpew.play()
+        #aqui é um codigo pra bala sair onde o personagem está
+        nova_bala.x = main_char.x
+        nova_bala.y = main_char.y
+        
+        #se o personagem estiver com a sprite de atirando a esquerda, a bala vai pra direção esquerda
+        if main_char.image == "main_char_shooting_left":
+            nova_bala.direcao = "esquerda"
+        else:
+            #se ele não estiver virado pra esquerda, os tiros sairam para a direita
+            nova_bala.direcao = "direita"
+        #coloca uma bala nova na lista
+        balas.append(nova_bala)
+#essa função é chamada quando o player clica com o mouse
+#o pos são as coordenadas do clique(posição do mouse na tela)
+def on_mouse_down(pos):
+    global actual_screen, total_score, activated_sounds
+    #se estiver na tela menu, e clicar no botão play, ele chama a função start_game (que inicia o jogo)
+    if actual_screen == "menu":
+        if button_play.collidepoint(pos):
+            start_game()
+            #se clicar em button store vai pra loja de upgrades
+        elif button_store.collidepoint(pos):
+            actual_screen = "store"
+        elif button_sound.collidepoint(pos):
+            #clicar em sound para ativar ou desativar o som
+            activated_sounds = not activated_sounds
+    #se estiver na tela de game_over aparece na tela o botão de recomeçar e o botão menu
+    elif actual_screen == "End":
+        if button_restart.collidepoint(pos):
+            start_game()
+        elif button_menu.collidepoint(pos):
+            actual_screen = "menu"
+
+    elif actual_screen == "store":
+        y_start = 150
+        y_gap = 60
+        keys_list = list(upgrades.keys())
+        #cria uma area clicavel para cada upgrade e verifica se o player clicou nela
+        for i, key in enumerate(keys_list):
+            rect = Rect((100, y_start + i * y_gap - 10), (800, 40))
+            if rect.collidepoint(pos):
+                #se o jogador tiver pontos, ele compra o upgrade, desconta o preço, aumenta o nivel do upgrade e aumenta o valor da proxima compra
+                upgrade = upgrades[key]
+                if total_score >= upgrade["price"]:
+                    total_score -= upgrade["price"]
+                    upgrade["level"] += 1
+                    upgrade["price"] += 10
+                    if key == "bullet_damage" and upgrade["level"] > 3:
+                        upgrade["level"] = 3
+        #aqui volta para o menu
+        if button_menu.collidepoint(pos):
+            actual_screen = "menu"
+#faz o projeto rodar
+pgzrun.go()
