@@ -20,14 +20,20 @@ class Zombie:
         self.image_base_name = image_base_name
         self.actor = Actor(f"{image_base_name}_1", start_pos)
         self.direction = direction
-        self.vida = 3
+        if image_base_name == "zombie1":
+            self.max_vida = 3
+        elif image_base_name == "zombie2":
+            self.max_vida = 5
+        else:
+            self.max_vida = 7
+        self.vida = self.max_vida
         self.animation_frames = 3
         self.current_frame = 1
         self.animation_speed = 5
         self.animation_counter = 0
 
     def respawn(self):
-        self.vida = 3
+        self.vida = self.max_vida
         self.direction = random.choice([-1, 1])
         self.actor.x = 0 if self.direction == 1 else WIDTH
         self.actor.y = random.randint(30, 600)
@@ -100,10 +106,12 @@ class MainChar:
 main_char_obj = MainChar()
 
 zombies = []
-for i in range(3):
-    start_x = 0 if i % 2 == 0 else WIDTH
+
+def criar_zumbi():
+    tipo = random.choice(["zombie1", "zombie2", "zombie3"])
+    start_x = 0 if random.choice([True, False]) else WIDTH
     direction = 1 if start_x == 0 else -1
-    z = Zombie(f'zombie{i+1}', (start_x, random.randint(30, 600)), direction)
+    z = Zombie(tipo, (start_x, random.randint(30, 600)), direction)
     zombies.append(z)
 
 score = 0
@@ -111,6 +119,7 @@ total_score = 0
 health = 3
 game_over = False
 actual_screen = 'menu'
+
 upgrades = {
     "char_speed": {"level": 0, "price": 5},
     "health": {"level": 0, "price": 5},
@@ -125,11 +134,11 @@ button_store = Rect((310, 320), (180, 40))
 button_sound = Rect((50, 500), (180, 40))
 
 def start_game():
-    global score, health, game_over, actual_screen, total_score
+    global score, health, game_over, actual_screen, total_score, zombies
     main_char_obj.actor.x, main_char_obj.actor.y = WIDTH / 2, HEIGHT / 2
     main_char_obj.idle()
-    for z in zombies:
-        z.respawn()
+    zombies = []
+    criar_zumbi()
     score = 0
     health = 3 + upgrades["health"]["level"]
     game_over = False
@@ -160,6 +169,11 @@ def update():
     main_char_obj.update()
 
     zombie_speed = 2 + score / 5
+
+    desejado = score // 5 + 1
+    if len(zombies) < desejado:
+        criar_zumbi()
+
     for z in zombies:
         if z.vida > 0:
             z.update(zombie_speed)
@@ -240,6 +254,11 @@ def draw():
         for z in zombies:
             if z.vida > 0:
                 z.actor.draw()
+                bar_width = 40
+                bar_height = 6
+                health_ratio = z.vida / z.max_vida
+                screen.draw.filled_rect(Rect((z.actor.x - 20, z.actor.y - 40), (bar_width, bar_height)), (255, 0, 0))
+                screen.draw.filled_rect(Rect((z.actor.x - 20, z.actor.y - 40), (bar_width * health_ratio, bar_height)), (0, 255, 0))
         screen.draw.text(f'Score: {score}', (15, 20), color=black)
         screen.draw.text(f'Health: {health}', (15, 40), color=black)
         for bala in balas:
