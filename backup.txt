@@ -249,16 +249,19 @@ def update():
     #o tiro verifica a direção da bala
     for bullet in bullets[:]:
         if hasattr(bullet, 'direction'):
+            #se a bala foi pra esquerda ela vai sentido -x a direita +x
             if bullet.direction == "right":
                 bullet.x += bullet_speed
             elif bullet.direction == "left":
                 bullet.x -= bullet_speed
+        #velocidade da bala + bullet speed do upgrade        
         else:
             bullet.x += bullet_speed
+            #aqui é pra bala ser removida do jogo caso saia fora do
         if bullet.x < -50 or bullet.x > WIDTH + 50:
             bullets.remove(bullet)
             continue
-
+        #aqui é a colisão entre bala e zombie, tira um de vida, pra cada dano da bala, se a vida do zombie for menor que 0 sobre 1 score e o total_score e por fim respawna outro zombie    
         for z in zombies:
             if z.vida > 0 and bullet.colliderect(z.actor):
                 z.vida -= bullet_damage
@@ -268,14 +271,15 @@ def update():
                     total_score += 1
                     z.respawn()
                 break
-
+#desenha a tela do jogo, mostrando vários elementos de acordo com a actual screen
 def draw():
     global playing_music, background_game_over
+    #se estiver na loja, desenha o background da loja, se não o outro background
     if actual_screen == "store":
         background_store.draw()
     else:
         background.draw()
-
+    #se a tela for a de menu vai colocar o nome ZombiePark, o botão play,o botão upgrade e o som
     if actual_screen == "menu":
         screen.draw.text("ZombiePark", center=(WIDTH // 2, 150), color="yellow", fontsize=95)
         button_y_start = 250
@@ -289,55 +293,66 @@ def draw():
         screen.draw.filled_rect(button_store, (0, 0, 255))
         screen.draw.text("UPGRADE", center=button_store.center, color=white, fontsize=30)
 
+        #aqui é pra ver se o botão vai ficar ligado ou desligado (musica)
         button_sound.center = (1050, 650)
         screen.draw.filled_rect(button_sound, (128, 0, 128))
         screen.draw.text("SOUND: " + ("ON" if activated_sounds else "OFF"), center=button_sound.center, color=white, fontsize=30)
 
+        #se não tiver tocando musica, e os sons estarem ativados (on) começa trocar musica
         if not playing_music and activated_sounds:
             sounds.menu_song.play(-1)
             playing_music = True
+            #se não ter os sons ativados, e playing music false, quer dizer que vai parar de tocar
         elif not activated_sounds and playing_music:
             sounds.menu_song.stop()
             playing_music = False
 
+    #aqui é a tla de jogo, quando entra nela, a musica do menu para, desenha o personagem 
     elif actual_screen == "game":
         if playing_music:
             sounds.menu_song.stop()
             playing_music = False
         main_char_obj.actor.draw()
+        
+        #um for para percorrer o array de zombies
         for z in zombies:
             if z.vida > 0:
                 z.actor.draw()
                 bar_width = 40
                 bar_height = 6
+                #aqui é a barra de vida
                 health_ratio = z.vida / z.max_vida
                 screen.draw.filled_rect(Rect((z.actor.x - 20, z.actor.y - 40), (bar_width, bar_height)), (255, 0, 0))
                 screen.draw.filled_rect(Rect((z.actor.x - 20, z.actor.y - 40), (bar_width * health_ratio, bar_height)), (0, 255, 0))
+        #aqui desenha a pontuação e a vida do personagem principal        
         screen.draw.text(f'Score: {score}', (15, 20), color=black)
         screen.draw.text(f'Health: {health}', (15, 40), color=black)
+        #desenha a bala com tamanho 20/5 na cor amarela
         for bullet in bullets:
             screen.draw.filled_rect(Rect((bullet.x, bullet.y), (20, 5)), (255, 255, 0))
-
+    #desenha o background de gameover, desenha o final score, o play again e o menu
     elif actual_screen == "End":
         background_game_over.draw()
         screen.draw.text("GAME OVER", center=(WIDTH // 2, 180), color=white, fontsize=40)
         screen.draw.text(f"FINAL SCORE: {score}", center=(WIDTH // 2, 230), color=white, fontsize=30)
         screen.draw.filled_rect(button_restart, (0, 128, 0))
-        screen.draw.text("REINICIAR", center=button_restart.center, fontsize=30, color=white)
+        screen.draw.text("PLAY AGAIN", center=button_restart.center, fontsize=30, color=white)
         screen.draw.filled_rect(button_menu, (0, 0, 128))
         screen.draw.text("MENU", center=button_menu.center, fontsize=30, color=white)
-
+    #se a tela atual for loja, desenha os elementos da tela de upgrade
     elif actual_screen == "store":
         screen.draw.text("UPGRADE STORE", center=(WIDTH // 2, 50), fontsize=50, color=black)
         y_start = 150
         y_gap = 60
+        #pra cada item no upgrade, como vida, dano da bala mostra na tela em letra maiuscula por causa do .upper, e tambem mostra o level do aprimoramento e o seu preço
         for i, (key, upgrade) in enumerate(upgrades.items()):
             text = f"{key.upper()}: Nível {upgrade['level']} - Preço: {upgrade['price']} pts"
             screen.draw.text(text, (100, y_start + i * y_gap), fontsize=30, color=white)
         screen.draw.text(f"Total Score: {total_score}", topright=(WIDTH - 20, 10), fontsize=30, color=black)
         screen.draw.filled_rect(button_menu, (0, 0, 128))
-        screen.draw.text("VOLTAR", center=button_menu.center, fontsize=30, color=white)
+        screen.draw.text("BACK", center=button_menu.center, fontsize=30, color=white)
 
+#se a tela atual for a de jogo, e apertar a tecla espaço, vai gerar uma bala, e um som, a bala sai na direção que o personagem estiver virado (direita e esquerda apenas)
 def on_key_down(key):
     global bullets
     if actual_screen == "game" and key == keys.SPACE:
@@ -346,36 +361,42 @@ def on_key_down(key):
             sounds.pewpew.play()
         new_bullet.x = main_char_obj.actor.x
         new_bullet.y = main_char_obj.actor.y
-
+        #se tivr virando pra esquerda, ele atira pra esquerda
         if main_char_obj.facing == "left":
             new_bullet.direction = "left"
             main_char_obj.actor.image = "main_char_shooting_left"
+        #se não ele atira pra direita
         else:
             new_bullet.direction = "right"
             main_char_obj.actor.image = "main_char_shooting_right"
-
+        #coloca um tempo pra poder atirar de novo, pra não ficar tiros infinitos
         main_char_obj.shooting_timer = 30
+        #adiciona a bala na lista
         bullets.append(new_bullet)
-
+#essa função lida com clicks do mouse, dependendo da posição que eles então(pos), menu, store, game ou gameover
 def on_mouse_down(pos):
+    #se a tela estiver no menu, e clicar no play, chama a função que começa o jogo
     global actual_screen, total_score, activated_sounds
     if actual_screen == "menu":
         if button_play.collidepoint(pos):
             start_game()
+        #se se clicar na loja, ele vai pra loja e desativa os sons caso o botão de som esteja OFF
         elif button_store.collidepoint(pos):
             actual_screen = "store"
         elif button_sound.collidepoint(pos):
             activated_sounds = not activated_sounds
-
+    #se estiver na tela de gameover, e clicar no play again, chama a função start_game() que começa o jogo
     elif actual_screen == "End":
         if button_restart.collidepoint(pos):
             start_game()
+        #se apertar o meu, vai pro menu    
         elif button_menu.collidepoint(pos):
             actual_screen = "menu"
-
+    #se estiver na loja
     elif actual_screen == "store":
         y_start = 150
         y_gap = 60
+        #mostra a lista de upgrades, com um espaço entre eles, e se o pontuação total, foi maior ou igual o preço, aumenta o level do upgrade e o preço(por 1.8 mais caro)
         keys_list = list(upgrades.keys())
         for i, key in enumerate(keys_list):
             rect = Rect((100, y_start + i * y_gap - 10), (800, 40))
@@ -385,7 +406,7 @@ def on_mouse_down(pos):
                     total_score -= upgrade["price"]
                     upgrade["level"] += 1
                     upgrade["price"] = int(upgrade["price"] * 1.8)
-
+        #se apertar no menu, volta pro menu
         if button_menu.collidepoint(pos):
             actual_screen = "menu"
 
