@@ -166,6 +166,7 @@ upgrades = {
 }
 
 #cria os botões, play, restart, menu, loja e som
+#posição_x posiçãoy e largura e altura
 button_play = Rect((300, 250), (250, 50))
 button_restart = Rect((300, 300), (200, 50))
 button_menu = Rect((300, 370), (200, 50))
@@ -244,6 +245,7 @@ def update():
                 z.respawn()
     
     bullet_speed = 10 + upgrades["bullet_speed"]["level"] * 2
+    #min (), 3 quer dizer quer o maior level de bullet dmg é 3
     bullet_damage = 1 + min(upgrades["bullet_damage"]["level"], 3)
 
     #o tiro verifica a direção da bala
