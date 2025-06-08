@@ -9,7 +9,7 @@
 ## 🎮 Como Jogar
 
 - **Setas do teclado**: mover o personagem (pra cima e pra baixo)
-- **Barra de espaço**: atirar
+- **Barra de espaço**: atirar (para atirar para esquerda, aperte a seta da esquerda, e para direita, aperte a seta da direita)
 - Compre upgrades na loja usando sua pontuação acumulada
 
 ---
