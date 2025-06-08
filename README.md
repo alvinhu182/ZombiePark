@@ -1,6 +1,6 @@
 # 🧟‍♂️ ZombiePark
 
-![Screenshot do jogo](screenshot.png)
+![Screenshot do jogo](Screenshot.png)
 
 **ZombiePark** é um jogo estilo _platformer_ feito com **Python** usando **PgZero**, onde o jogador enfrenta ondas de zumbis em uma cidade . O jogo conta com upgrades, loja, animações, música e sistema de pontuação.
 
